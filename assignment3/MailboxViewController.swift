@@ -10,7 +10,8 @@ import UIKit
 
 
 class MailboxViewController: UIViewController {
-
+    
+    @IBOutlet weak var mainView: UIView!
     @IBOutlet weak var scrollView: UIScrollView!
     @IBOutlet weak var messageView: UIView!
     @IBOutlet weak var messageImage: UIImageView!
@@ -29,17 +30,16 @@ class MailboxViewController: UIViewController {
     var leftIconOriginalCenter: CGPoint!
     var mainOriginalViewCenter:CGPoint!
     
-    @IBOutlet weak var mainView: UIView!
+    //TODO: more constants
+    let firstIconThreshold:CGFloat = 60
+    let secondIconThreshold:CGFloat = 260
+    
     
     override func viewDidLoad() {
         super.viewDidLoad()
         messageInitialCenter = messageImage.center
         
-        print("message initial center", messageInitialCenter)
-        
         scrollView.contentSize = CGSize(width: 320, height: 1000)
-        
-        //might have to save laterIconImage position
     }
     
     override func canBecomeFirstResponder() -> Bool {
@@ -48,7 +48,6 @@ class MailboxViewController: UIViewController {
     
     override func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()
-        // Dispose of any resources that can be recreated.
     }
     
     override func motionEnded(motion: UIEventSubtype, withEvent event: UIEvent?){
@@ -60,7 +59,6 @@ class MailboxViewController: UIViewController {
     @IBAction func didMessagePan(sender: UIPanGestureRecognizer) {
 
         let translation = sender.translationInView(view)
-        let location = sender.locationInView(view)
         
         if sender.state == UIGestureRecognizerState.Began {
             messageImageOriginalCenter = messageImage.center
@@ -69,54 +67,60 @@ class MailboxViewController: UIViewController {
             
         }
         
+        //TODO: DRY
         else if (sender.state == UIGestureRecognizerState.Changed) {
             
-            //always the pan the message
             messageImage.center = CGPoint(x: messageImageOriginalCenter.x + translation.x, y: messageImageOriginalCenter.y)
             
+            // fades in the icon
+            if (translation.x < firstIconThreshold && translation.x > firstIconThreshold * -1) {
+                archiveIconImage.alpha = (fabs(translation.x)/firstIconThreshold)
+                laterIconImage.alpha = fabs(translation.x)/firstIconThreshold
+            }
             
-            if (translation.x < -60 && translation.x > -260) {
+            else if (translation.x < -firstIconThreshold && translation.x > -secondIconThreshold) {
                 
                 laterIconImage.hidden = false
                 listIconImage.hidden = true
-
-                laterIconImage.center = CGPoint(x: rightIconOriginalCenter.x + translation.x + 60, y: rightIconOriginalCenter.y)
                 
-                laterIconImage.backgroundColor = UIColor(red: 251/255, green: 212/255, blue: 13/255, alpha: 1.0)
-
+                laterIconImage.center = CGPoint(x: rightIconOriginalCenter.x + translation.x + firstIconThreshold, y: rightIconOriginalCenter.y)
+                
+                //TODO: anyway to just do this once, instead of firing everytime?
                 messageView.backgroundColor = UIColor(red: 251/255, green: 212/255, blue: 13/255, alpha: 1.0)
     
             }
-            else if (translation.x <= -260) {
                 
-
-                laterIconImage.center = CGPoint(x: rightIconOriginalCenter.x + translation.x + 60, y: rightIconOriginalCenter.y)
+            else if (translation.x <= -secondIconThreshold) {
+                
+                //TODO: more elegant way to swap out
+                laterIconImage.center = CGPoint(x: rightIconOriginalCenter.x + translation.x + firstIconThreshold, y: rightIconOriginalCenter.y)
                 
                 listIconImage.center = laterIconImage.center
                 
+                setIconsHidden(true)
                 listIconImage.hidden = false
-                laterIconImage.hidden = true
-                archiveIconImage.hidden = true
-                deleteIconImage.hidden = true
                 
                 messageView.backgroundColor = UIColor(red: 217/255, green: 167/255, blue: 113/255, alpha: 1.0) /* #d9a771 */
             }
-            else if (translation.x > 60 && translation.x < 260) {
-                onlyShowThisIcon(archiveIconImage)
+                
+            else if (translation.x > firstIconThreshold && translation.x < secondIconThreshold) {
+                setIconsHidden(true)
+                archiveIconImage.hidden = false
                 
                 archiveIconImage.backgroundColor = UIColor(red: 108/255, green: 219/255, blue: 91/255, alpha: 1.0) /* #6cdb5b */
                 
-                archiveIconImage.center = CGPoint(x: leftIconOriginalCenter.x + translation.x - 60, y: leftIconOriginalCenter.y)
+                archiveIconImage.center = CGPoint(x: leftIconOriginalCenter.x + translation.x - firstIconThreshold, y: leftIconOriginalCenter.y)
                 messageView.backgroundColor = UIColor(red: 108/255, green: 219/255, blue: 91/255, alpha: 1.0) /* #6cdb5b */
             }
             
-            else if (translation.x >= 260) {
+            else if (translation.x >= secondIconThreshold) {
                 
-                archiveIconImage.center = CGPoint(x: leftIconOriginalCenter.x + translation.x - 60, y: leftIconOriginalCenter.y)
+                archiveIconImage.center = CGPoint(x: leftIconOriginalCenter.x + translation.x - firstIconThreshold, y: leftIconOriginalCenter.y)
                 
                 deleteIconImage.center = archiveIconImage.center
                 
-                onlyShowThisIcon(deleteIconImage)
+                setIconsHidden(true)
+                deleteIconImage.hidden = false
 
                 messageView.backgroundColor = UIColor(red: 237/255, green: 83/255, blue: 41/255, alpha: 1.0) /* #ed5329 */
     
@@ -127,23 +131,18 @@ class MailboxViewController: UIViewController {
         else if (sender.state == UIGestureRecognizerState.Ended)  {
             listIconImage.hidden = true
             
-            // less than 60, put everything back i n place
-            if (translation.x > -60 && translation.x < 60) {
+            // less than firstIconThreshold, put everything back i n place
+            if (translation.x > -firstIconThreshold && translation.x < firstIconThreshold) {
                 messageImage.center = CGPoint(x: messageImageOriginalCenter.x, y: messageImageOriginalCenter.y)
                 laterIconImage.center = CGPoint(x: rightIconOriginalCenter.x, y: rightIconOriginalCenter.y)
-                
                 listIconImage.center = CGPoint(x: rightIconOriginalCenter.x, y: rightIconOriginalCenter.y)
-                
                 archiveIconImage.center = CGPoint(x: leftIconOriginalCenter.x, y: leftIconOriginalCenter.y)
             }
-            else if (translation.x < -60 && translation.x > -260) {
+                
+            else if (translation.x < -firstIconThreshold && translation.x > -secondIconThreshold) {
                 //animate the thing
-                UIView.animateWithDuration(0.6, animations: { () -> Void in
-                    
-                    self.archiveIconImage.hidden = true
-                    self.messageImage.transform = CGAffineTransformMakeTranslation(-320, 0)
-                    self.laterIconImage.transform = CGAffineTransformMakeTranslation(-260, 0)
-                })
+                exitAnimation(laterIconImage, coefficient: -1)
+                
                 delay(0.2) {
                     
                     UIView.animateWithDuration(0.6, animations: { () -> Void in
@@ -151,15 +150,9 @@ class MailboxViewController: UIViewController {
                     })
                 }
             }
-            else if (translation.x <= -260) {
-                UIView.animateWithDuration(0.6, animations: { () -> Void in
-                    
-                    self.listIconImage.hidden = true
-                    self.messageImage.transform = CGAffineTransformMakeTranslation(-320, 0)
-                    self.listIconImage.transform = CGAffineTransformMakeTranslation(-260, 0)
-                })
+            else if (translation.x <= -secondIconThreshold) {
+                exitAnimation(listIconImage, coefficient: -1)
                 delay(0.2) {
-                    
                     UIView.animateWithDuration(0.6, animations: { () -> Void in
                         self.listSelectionImage.alpha = 1
                     })
@@ -167,69 +160,18 @@ class MailboxViewController: UIViewController {
                 
             }
             
-            else if (translation.x > 60 && translation.x < 260 ) {
-                UIView.animateWithDuration(0.6, animations: { () -> Void in
-                    
-                    self.archiveIconImage.hidden = true
-                    self.messageImage.transform = CGAffineTransformMakeTranslation(320, 0)
-                })
+            else if (translation.x > firstIconThreshold && translation.x < secondIconThreshold ) {
+                exitAnimation(archiveIconImage, coefficient: 1)
                 scootFeedUp()
 
             }
-            else if (translation.x > 260) {
-                UIView.animateWithDuration(0.6, animations: { () -> Void in
-                    
-                    self.deleteIconImage.hidden = true
-                    self.messageImage.transform = CGAffineTransformMakeTranslation(320, 0)
-                })
+            else if (translation.x > secondIconThreshold) {
+                exitAnimation(deleteIconImage, coefficient: 1)
                 scootFeedUp()
             }
         }
     }
 
-    func delay(delay:Double, closure:()->()) {
-        dispatch_after(
-            dispatch_time(
-                DISPATCH_TIME_NOW,
-                Int64(delay * Double(NSEC_PER_SEC))
-            ),
-            dispatch_get_main_queue(), closure)
-    }
-    
-    func scootFeedUp(){
-        UIView.animateWithDuration(1, animations: { () -> Void in
-            self.feedImage.transform = CGAffineTransformMakeTranslation(0, -85)
-        })
-    }
-    
-    func scootFeedDown(){
-        messageImage.transform = CGAffineTransformMakeTranslation(0, 0)
-        messageImage.center = messageImageOriginalCenter
-        
-        listIconImage.hidden = false
-        laterIconImage.hidden = false
-        archiveIconImage.hidden = false
-        archiveIconImage.center = CGPoint(x: 30, y: 42)
-        laterIconImage.center = CGPoint(x: 290, y:42)
-        
-        listIconImage.transform = CGAffineTransformMakeTranslation(0, 0)
-        laterIconImage.transform = CGAffineTransformMakeTranslation(0, 0)
-        deleteIconImage.transform = CGAffineTransformMakeTranslation(0, 0)
-        archiveIconImage.transform = CGAffineTransformMakeTranslation(0, 0)
-        
-        UIView.animateWithDuration(1, animations: { () -> Void in
-            self.feedImage.transform = CGAffineTransformMakeTranslation(0, 0)
-        })
-    }
-    
-    func onlyShowThisIcon(icon: UIImageView){
-        laterIconImage.hidden = true
-        listIconImage.hidden = true
-        archiveIconImage.hidden = true
-        deleteIconImage.hidden = true
-        
-        icon.hidden = false
-    }
     
     @IBAction func didTapReschedule(sender: UITapGestureRecognizer) {
         rescheduleImage.alpha = 0
@@ -250,7 +192,7 @@ class MailboxViewController: UIViewController {
             
             
         }
-        
+        //TODO: Spring is a little aggressive
         else if (sender.state == UIGestureRecognizerState.Ended){
             if (velocity.x > 0 ) {
                 UIView.animateWithDuration(0.3, delay: 0, usingSpringWithDamping: 0.5, initialSpringVelocity: 1, options: [], animations: { () -> Void in
@@ -283,6 +225,65 @@ class MailboxViewController: UIViewController {
     
     }
     
+    // -------------------- HELPERS --------------------------------------------
+
+    func delay(delay:Double, closure:()->()) {
+        dispatch_after(
+            dispatch_time(
+                DISPATCH_TIME_NOW,
+                Int64(delay * Double(NSEC_PER_SEC))
+            ),
+            dispatch_get_main_queue(), closure)
+    }
+    
+    func scootFeedUp(){
+        UIView.animateWithDuration(1, animations: { () -> Void in
+            self.feedImage.transform = CGAffineTransformMakeTranslation(0, -85)
+        })
+    }
+    
+    func scootFeedDown(){
+        
+        messageView.backgroundColor = UIColor.lightGrayColor()
+        messageImage.transform = CGAffineTransformMakeTranslation(0, 0)
+        messageImage.center = messageImageOriginalCenter
+        
+        setIconsHidden(false)
+        
+        archiveIconImage.center = CGPoint(x: 30, y: 42)
+        laterIconImage.center = CGPoint(x: 290, y:42)
+        
+        listIconImage.transform = CGAffineTransformMakeTranslation(0, 0)
+        laterIconImage.transform = CGAffineTransformMakeTranslation(0, 0)
+        deleteIconImage.transform = CGAffineTransformMakeTranslation(0, 0)
+        archiveIconImage.transform = CGAffineTransformMakeTranslation(0, 0)
+        
+        UIView.animateWithDuration(1, animations: { () -> Void in
+            self.feedImage.transform = CGAffineTransformMakeTranslation(0, 0)
+        })
+    }
+    
+    func setIconsHidden(isHidden:Bool){
+        laterIconImage.hidden = isHidden
+        listIconImage.hidden = isHidden
+        archiveIconImage.hidden = isHidden
+        deleteIconImage.hidden = isHidden
+    }
+    
+    func exitAnimation(icon: UIImageView, coefficient: CGFloat)  {
+        
+        setIconsHidden(true)
+        
+        UIView.animateWithDuration(0.6, animations: { () -> Void in
+            
+            self.messageImage.transform = CGAffineTransformMakeTranslation(320 * coefficient, 0)
+            if (coefficient == -1) {
+                icon.transform = CGAffineTransformMakeTranslation(self.secondIconThreshold * coefficient, 0)
+            }
+        })
+        
+    }
+
     /*
     // MARK: - Navigation
 
